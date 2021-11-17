@@ -1,15 +1,5 @@
 /*
- * libgit2 "log" example - shows how to walk history and get commit info
- *
- * Written by the libgit2 contributors
- *
- * To the extent possible under law, the author(s) have dedicated all copyright
- * and related and neighboring rights to this software to the public domain
- * worldwide. This software is distributed without any warranty.
- *
- * You should have received a copy of the CC0 Public Domain Dedication along
- * with this software. If not, see
- * <http://creativecommons.org/publicdomain/zero/1.0/>.
+ * git interactions taken from libgit2 "log" example
  */
 
 #![deny(warnings)]
@@ -75,10 +65,13 @@ struct Args {
     arg_spec: Vec<String>,
 }
 
-fn run(args: &Args) -> Result<(), Error> {
+fn run(args: &Args) -> Result<Vec<i64>, Error> {
     let path = args.flag_git_dir.as_ref().map(|s| &s[..]).unwrap_or("/tmp/community-health");
     let repo = Repository::open(path)?;
     let mut revwalk = repo.revwalk()?;
+
+    let mut first_contributors = Vec::new();
+    let mut first_contributor_timestamps = Vec::new();
 
     // Prepare the revwalk based on CLI parameters
     let base = if args.flag_reverse {
@@ -184,10 +177,22 @@ fn run(args: &Args) -> Result<(), Error> {
         .skip(args.flag_skip.unwrap_or(0))
         .take(args.flag_max_count.unwrap_or(!0));
 
-    // print!
     for commit in revwalk {
         let commit = commit?;
+
+        let author = commit.author();
+        let seconds = author.when().seconds();
+        let author = author.to_string();
+
+        if first_contributors.contains(&author) {
+            continue
+        } else {
+            first_contributors.push(author.clone());
+            first_contributor_timestamps.push(seconds)
+        }
+
         print_commit(&commit);
+
         if !args.flag_patch || commit.parents().len() > 1 {
             continue;
         }
@@ -209,7 +214,9 @@ fn run(args: &Args) -> Result<(), Error> {
         })?;
     }
 
-    Ok(())
+    println!("total contributors: {}", first_contributor_timestamps.len());
+
+    Ok(first_contributor_timestamps)
 }
 
 fn sig_matches(sig: &Signature, arg: &Option<String>) -> bool {
@@ -231,12 +238,9 @@ fn log_message_matches(msg: Option<&str>, grep: &Option<String>) -> bool {
 }
 
 fn print_commit(commit: &Commit) {
-    // prints author and date when commited.
     let author = commit.author();
     println!("Author: {}", author);
-    // print_time(&author.when(), "Date:   ");
     println!("Date:   {}", &author.when().seconds());
-
     println!();
 }
 
@@ -270,10 +274,20 @@ impl Args {
     }
 }
 
+fn plot_first_contributions (history: &Vec<i64>) {
+    println!("first contributor length {}", history.len())
+
+}
+
+
 fn main() {
     let args = Args::from_args();
+    let mut first_contributor_timestamps = Vec::new();
+
     match run(&args) {
-        Ok(()) => {}
+        Ok(v) => {first_contributor_timestamps = v}
         Err(e) => println!("error: {}", e),
     }
+
+    plot_first_contributions(&first_contributor_timestamps);
 }

@@ -9,3 +9,4 @@ edition = "2021"
 git2 = "0.13"
 structopt = { version = "0.3", default-features = false }
 time = "0.1.38"
+plotters = "0.3.1"
